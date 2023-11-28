@@ -73,9 +73,21 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void addTodo(val) {
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your todo')),
+      );
+      _todoFocusNode.requestFocus();
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Adding: ${_todoController.text}')),
+    );
     setState(() {
       _todos.add(val);
     });
+    _todoController.clear();
+    _todoFocusNode.requestFocus();
   }
 
   @override
@@ -86,104 +98,72 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: ListView(
-          children: [
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                      focusNode: _todoFocusNode,
-                      controller: _todoController,
-                      decoration: InputDecoration(
-                          border: const OutlineInputBorder(),
-                          hintText: 'Enter your todo',
-                          suffixIcon: IconButton(
-                              icon: const Icon(Icons.add),
-                              onPressed: () {
-                                if (!_formKey.currentState!.validate()) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content:
-                                            Text('Please enter your todo')),
-                                  );
-                                  _todoFocusNode.requestFocus();
-                                  return;
-                                }
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text(
-                                          'Adding: ${_todoController.text}')),
-                                );
-                                addTodo(
-                                  _todoController.text,
-                                );
-                                _todoController.clear();
-                                _todoFocusNode.requestFocus();
-                              })),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your todo';
-                        }
-                        return null;
-                      },
-                      onFieldSubmitted: (value) {
-                        if (!_formKey.currentState!.validate()) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Please enter your todo')),
-                          );
-                          _todoFocusNode.requestFocus();
-                          return;
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Adding: $value')),
-                        );
-                        addTodo(
-                          value,
-                        );
-                        _todoController.clear();
-                        _todoFocusNode.requestFocus();
-                      }),
-                ],
-              ),
-            ),
-            const SizedBox(
-              height: 20,
-            ),
-            ListView.builder(
-              shrinkWrap: true,
-              itemCount: _todos.length,
-              itemBuilder: (context, index) {
-                final item = _todos[index];
-                return Dismissible(
-                  key: Key(item),
-                  onDismissed: (direction) {
-                    setState(() {
-                      _todos.removeAt(index);
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('$item dismissed')),
-                    );
-                  },
-                  background: Container(
-                    color: Theme.of(context).colorScheme.error,
-                    child: const Icon(Icons.delete),
+          padding: const EdgeInsets.all(8.0),
+          child: ReorderableListView(
+              header: Column(children: [
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                          focusNode: _todoFocusNode,
+                          controller: _todoController,
+                          decoration: InputDecoration(
+                              border: const OutlineInputBorder(),
+                              hintText: 'Enter your todo',
+                              suffixIcon: IconButton(
+                                  icon: const Icon(Icons.add),
+                                  onPressed: () {
+                                    addTodo(_todoController.text);
+                                  })),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your todo';
+                            }
+                            return null;
+                          },
+                          onFieldSubmitted: (value) {
+                            addTodo(value);
+                          }),
+                    ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
+                ),
+                const SizedBox(
+                  height: 20,
+                )
+              ]),
+              children: <Widget>[
+                for (final todo in _todos)
+                  Dismissible(
+                    key: ValueKey(todo),
+                    background: Container(
+                      color: Theme.of(context).colorScheme.error,
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    onDismissed: (direction) {
+                      setState(() {
+                        _todos.remove(todo);
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('$todo dismissed')),
+                      );
+                    },
                     child: ListTile(
-                      title: Text(_todos[index]),
+                      key: ValueKey(todo),
+                      title: Text(todo),
                       tileColor: Theme.of(context).colorScheme.surfaceVariant,
                     ),
-                  ),
-                );
-              },
-            )
-          ],
-        ),
-      ),
+                  )
+              ],
+              onReorder: (int oldIndex, int newIndex) {
+                setState(() {
+                  if (oldIndex < newIndex) {
+                    newIndex -= 1;
+                  }
+                  final String todo = _todos.removeAt(oldIndex);
+                  _todos.insert(newIndex, todo);
+                });
+              })),
     );
   }
 }
